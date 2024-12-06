@@ -18,7 +18,7 @@
 void UFGCrouchCheck::OnTrigger(const FSimulationTickParams& Params)
 {
 	TSharedPtr<FFGLayeredMove_Crouch> DuckMove = MakeShared<FFGLayeredMove_Crouch>();
-	Params.MoverComponent->QueueLayeredMove(DuckMove);
+	Params.MovingComps.MoverComponent->QueueLayeredMove(DuckMove);
 }
 
 FTransitionEvalResult UFGCrouchCheck::OnEvaluate(const FSimulationTickParams& Params) const

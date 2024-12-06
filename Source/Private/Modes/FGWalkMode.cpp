@@ -89,8 +89,8 @@ void UFGWalkMode::OnGenerateMove(const FMoverTickStartData& StartState, const FM
 void UFGWalkMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTickEndData& OutputState)
 {
 	const FMoverTickStartData& StartState = Params.StartState;
-	USceneComponent* UpdatedComponent = Params.UpdatedComponent;
-	UPrimitiveComponent* UpdatedPrimitive = Params.UpdatedPrimitive;
+	USceneComponent* UpdatedComponent = Params.MovingComps.UpdatedComponent.Get();
+	UPrimitiveComponent* UpdatedPrimitive = Params.MovingComps.UpdatedPrimitive.Get();
 	FProposedMove ProposedMove = Params.ProposedMove;
 
 	const FFGMoverInputCmd* CharacterInputs = StartState.InputCmd.InputCollection.FindDataByType<FFGMoverInputCmd>();
@@ -101,13 +101,6 @@ void UFGWalkMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTi
 
 	const float DeltaSeconds = Params.TimeStep.StepMs * 0.001f;
 
-	// Instantaneous movement changes that are executed and we exit before consuming any time
-	if (ProposedMove.bHasTargetLocation && FG::AttemptTeleport(UpdatedComponent, ProposedMove.TargetLocation, UpdatedComponent->GetComponentRotation(), *StartingSyncState, OutputState))
-	{
-		OutputState.MovementEndState.RemainingMs = Params.TimeStep.StepMs; 	// Give back all the time
-		return;
-	}
-
 	if(TryJump(CharacterInputs, OutputState))
 	{
 		OutputState.MovementEndState.NextModeName = FG::Modes::Air;
@@ -116,7 +109,7 @@ void UFGWalkMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTi
 	FMovementRecord MoveRecord;
 	MoveRecord.SetDeltaSeconds(DeltaSeconds);
 
-	UMoverBlackboard* SimBlackboard = GetBlackboard_Mutable();
+	UMoverBlackboard* SimBlackboard = GetMoverComponent()->GetSimBlackboard_Mutable();
 	SimBlackboard->Invalidate(CommonBlackboard::LastFloorResult); // Flush last floor result.
 
 	constexpr float FloorSweepDist = 1.0f;
@@ -151,7 +144,7 @@ void UFGWalkMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTi
 
 	if (!MoveDelta.IsNearlyZero() || bIsOrientationChanging)
 	{
-		UMovementUtils::TrySafeMoveUpdatedComponent(UpdatedComponent, UpdatedPrimitive, MoveDelta, OrientQuat, true, Hit, ETeleportType::None, MoveRecord);
+		UMovementUtils::TrySafeMoveUpdatedComponent(UpdatedComponent, MoveDelta, OrientQuat, true, Hit, ETeleportType::None, MoveRecord);
 	}
 
 	if (NewFloor.bWalkableFloor && UpdatedPrimitive)
@@ -162,9 +155,7 @@ void UFGWalkMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTi
 		// your movement speed isn't clamped depending on the angle of the wall.
 		// However we can do it way better now, although it may mean not using this util.
 		UMovementUtils::TryMoveToSlideAlongSurface(
-			UpdatedComponent,
-			UpdatedPrimitive,
-			GetMoverComponent(),
+			Params.MovingComps,
 			MoveDelta,
 			1.f - Hit.Time,
 			OrientQuat,
@@ -188,7 +179,7 @@ bool UFGWalkMode::TryJump(const FFGMoverInputCmd* InputCmd, FMoverTickEndData& O
 		return false;
 	}
 
-	TSharedPtr<FLayeredMove_JumpImpulse> JumpMove = MakeShared<FLayeredMove_JumpImpulse>();
+	TSharedPtr<FLayeredMove_JumpImpulseOverDuration> JumpMove = MakeShared<FLayeredMove_JumpImpulseOverDuration>();
 	JumpMove->UpwardsSpeed = FG::CVars::JumpForce;
 	OutputState.SyncState.LayeredMoves.QueueLayeredMove(JumpMove);
 	OutputState.MovementEndState.NextModeName = FG::Modes::Air;

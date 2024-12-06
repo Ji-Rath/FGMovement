@@ -75,8 +75,8 @@ void UFGAirMode::OnGenerateMove(const FMoverTickStartData& StartState, const FMo
 void UFGAirMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTickEndData& OutputState)
 {
 	const FMoverTickStartData& StartState = Params.StartState;
-	USceneComponent* UpdatedComponent = Params.UpdatedComponent;
-	UPrimitiveComponent* UpdatedPrimitive = Params.UpdatedPrimitive;
+	USceneComponent* UpdatedComponent = Params.MovingComps.UpdatedComponent.Get();
+	UPrimitiveComponent* UpdatedPrimitive = Params.MovingComps.UpdatedPrimitive.Get();
 	FProposedMove ProposedMove = Params.ProposedMove;
 
 	const FMoverDefaultSyncState* StartingSyncState = StartState.SyncState.SyncStateCollection.FindDataByType<FMoverDefaultSyncState>();
@@ -86,17 +86,10 @@ void UFGAirMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTic
 	
 	const float DeltaSeconds = Params.TimeStep.StepMs * 0.001f;
 
-	// Instantaneous movement changes that are executed and we exit before consuming any time
-	if (ProposedMove.bHasTargetLocation && FG::AttemptTeleport(UpdatedComponent, ProposedMove.TargetLocation, UpdatedComponent->GetComponentRotation(), *StartingSyncState, OutputState))
-	{
-		OutputState.MovementEndState.RemainingMs = Params.TimeStep.StepMs; 	// Give back all the time
-		return;
-	}
-
 	FMovementRecord MoveRecord;
 	MoveRecord.SetDeltaSeconds(DeltaSeconds);
 
-	UMoverBlackboard* SimBlackboard = GetBlackboard_Mutable();
+	UMoverBlackboard* SimBlackboard = GetMoverComponent()->GetSimBlackboard_Mutable();
 	SimBlackboard->Invalidate(CommonBlackboard::LastFloorResult); // Flush last floor result.
 
 	constexpr float FloorSweepDist = 1.f;
@@ -132,15 +125,13 @@ void UFGAirMode::OnSimulationTick(const FSimulationTickParams& Params, FMoverTic
 
 	if (!MoveDelta.IsNearlyZero() || bIsOrientationChanging)
 	{
-		UMovementUtils::TrySafeMoveUpdatedComponent(UpdatedComponent, UpdatedPrimitive, MoveDelta, OrientQuat, true, Hit, ETeleportType::None, MoveRecord);
+		UMovementUtils::TrySafeMoveUpdatedComponent(Params.MovingComps, MoveDelta, OrientQuat, true, Hit, ETeleportType::None, MoveRecord);
 	}
 
 	if(Hit.bBlockingHit)
 	{
 		UMovementUtils::TryMoveToSlideAlongSurface(
-			UpdatedComponent,
-			UpdatedPrimitive,
-			GetMoverComponent(),
+			Params.MovingComps,
 			MoveDelta,
 			1.f - Hit.Time,
 			OrientQuat,
