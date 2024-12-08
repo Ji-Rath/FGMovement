@@ -16,6 +16,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Logging/StructuredLog.h"
 #include "MoveLibrary/MovementUtils.h"
+#include "Settings/FGMovementSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FGMovementUtils)
 
@@ -23,21 +24,24 @@ void UFGMovementUtils::ApplyDamping(UFGMoverComponent* MoverComponent, FProposed
 {
 	double Damper = 0.0;
 	double IntentSpeed = 0.0;
+
+	auto MovementSettings = MoverComponent->FindSharedSettings<UFGMovementSettings>();
+	check(MovementSettings);
 	
 	double Speed = Move.LinearVelocity.Size();
 	
 	if(MoverComponent->IsOnGround())
 	{
-		IntentSpeed = FG::CVars::GroundSpeed;
-		Damper = FG::CVars::GroundDamping;
+		IntentSpeed = MovementSettings->GroundSpeed;
+		Damper = MovementSettings->GroundDamping;
 	}
 	else if(MoverComponent->IsAirborne())
 	{
-		IntentSpeed = FG::CVars::AirSpeed;
-		Damper = FG::CVars::AirDamping;
+		IntentSpeed = MovementSettings->AirSpeed;
+		Damper = MovementSettings->AirDamping;
 	}
 	
-	double DragFactor = UKismetMathLibrary::NormalizeToRange(FMath::Max(FG::CVars::SlipFactor, Speed), 0.0, IntentSpeed);
+	double DragFactor = UKismetMathLibrary::NormalizeToRange(FMath::Max(MovementSettings->SlipFactor, Speed), 0.0, IntentSpeed);
 	double Drag = Damper * DragFactor; // Drag is a function of speed and the damper.
 	
 	Move.LinearVelocity += -Move.LinearVelocity * Drag * DeltaTime; // Apply counter force.
@@ -45,15 +49,18 @@ void UFGMovementUtils::ApplyDamping(UFGMoverComponent* MoverComponent, FProposed
 
 void UFGMovementUtils::ApplyAcceleration(UFGMoverComponent* MoverComponent, FProposedMove& Move, float DeltaTime, FVector DirectionIntent, float DesiredSpeed)
 {
+	auto MovementSettings = MoverComponent->FindSharedSettings<UFGMovementSettings>();
+	check(MovementSettings);
+	
 	double AccelerationConstant = 0.0;
 
 	if(MoverComponent->IsOnGround())
 	{
-		AccelerationConstant = FG::CVars::GroundAcceleration;
+		AccelerationConstant = MovementSettings->GroundAcceleration;
 	}
 	else if(MoverComponent->IsAirborne())
 	{
-		AccelerationConstant = FG::CVars::AirAcceleration;
+		AccelerationConstant = MovementSettings->AirAcceleration;
 	}
 	
 	const double Acceleration = DesiredSpeed * AccelerationConstant * DeltaTime;

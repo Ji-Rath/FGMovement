@@ -18,6 +18,8 @@ class FGMOVEMENT_API UFGAirMode final : public UBaseMovementMode
 public:
 	GENERATED_BODY()
 
+	UFGAirMode();
+
 	//~ Begin UBaseMovementMode
 	void OnGenerateMove(const FMoverTickStartData& StartState, const FMoverTimeStep& TimeStep, FProposedMove& OutProposedMove) const override;
 	void OnSimulationTick(const FSimulationTickParams& Params, FMoverTickEndData& OutputState) override;

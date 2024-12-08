@@ -19,8 +19,14 @@
 #include "MoveLibrary/MovementUtils.h"
 #include "MoveLibrary/FloorQueryUtils.h"
 #include "Logging/StructuredLog.h"
+#include "Settings/FGMovementSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FGAirMode)
+
+UFGAirMode::UFGAirMode()
+{
+	SharedSettingsClasses.Emplace(UFGMovementSettings::StaticClass());
+}
 
 /**
  * Generate a single substep of movement for the mode - remember this is sub-stepping against
@@ -55,10 +61,13 @@ void UFGAirMode::OnGenerateMove(const FMoverTickStartData& StartState, const FMo
 	OutProposedMove.DirectionIntent = CharacterInputs->GetOrientationIntentDir_WorldSpace();
 
 	FVector MoveInputWS = OutProposedMove.DirectionIntent.ToOrientationRotator().RotateVector(CharacterInputs->GetMoveInput());
-	
-	UFGMovementUtils::ApplyAcceleration(CastChecked<UFGMoverComponent>(GetOuter()), OutProposedMove, DeltaTime, MoveInputWS, FG::CVars::AirSpeed);
 
-	OutProposedMove.LinearVelocity -= FVector::UpVector * FG::CVars::GravitySpeed * DeltaTime;
+	auto MovementSettings = GetMoverComponent()->FindSharedSettings<UFGMovementSettings>();
+	check(MovementSettings);
+	
+	UFGMovementUtils::ApplyAcceleration(CastChecked<UFGMoverComponent>(GetOuter()), OutProposedMove, DeltaTime, MoveInputWS, MovementSettings->AirSpeed);
+
+	OutProposedMove.LinearVelocity += UMovementUtils::ComputeVelocityFromGravity(GetMoverComponent()->GetGravityAcceleration(), DeltaTime);
 
     UE_LOGFMT(LogMover, Display, "Linear Velocity: {LinVel}", *OutProposedMove.LinearVelocity.ToString());
 }

@@ -22,12 +22,14 @@
 #include "MoverComponent.h"
 #include "Components/CapsuleComponent.h"
 #include "Logging/StructuredLog.h"
+#include "Settings/FGMovementSettings.h"
 
 #include UE_INLINE_GENERATED_CPP_BY_NAME(FGWalkMode)
 
 UFGWalkMode::UFGWalkMode()
 {
 	Transitions.Add(CreateDefaultSubobject<UFGCrouchCheck>(TEXT("DuckCheck")));
+	SharedSettingsClasses.Emplace(UFGMovementSettings::StaticClass());
 }
 
 /**
@@ -72,7 +74,10 @@ void UFGWalkMode::OnGenerateMove(const FMoverTickStartData& StartState, const FM
 	FVector ProjectedMove = FVector::VectorPlaneProject(MoveInputWS, FloorResult.HitResult.ImpactNormal);
 	ProjectedMove.Normalize();
 
-	UFGMovementUtils::ApplyAcceleration(CastChecked<UFGMoverComponent>(GetMoverComponent()), OutProposedMove, DeltaTime, ProjectedMove, FG::CVars::GroundSpeed);
+	auto MovementSettings = GetMoverComponent()->FindSharedSettings<UFGMovementSettings>();
+	check(MovementSettings);
+	
+	UFGMovementUtils::ApplyAcceleration(CastChecked<UFGMoverComponent>(GetMoverComponent()), OutProposedMove, DeltaTime, ProjectedMove, MovementSettings->GroundSpeed);
 
     UE_LOGFMT(LogMover, Display, "Linear Velocity: {LinVel}", *OutProposedMove.LinearVelocity.ToString());
 }
@@ -179,8 +184,11 @@ bool UFGWalkMode::TryJump(const FFGMoverInputCmd* InputCmd, FMoverTickEndData& O
 		return false;
 	}
 
+	auto MovementSettings = GetMoverComponent()->FindSharedSettings<UFGMovementSettings>();
+	check(MovementSettings);
+	
 	TSharedPtr<FLayeredMove_JumpImpulseOverDuration> JumpMove = MakeShared<FLayeredMove_JumpImpulseOverDuration>();
-	JumpMove->UpwardsSpeed = FG::CVars::JumpForce;
+	JumpMove->UpwardsSpeed = MovementSettings->JumpForce;
 	OutputState.SyncState.LayeredMoves.QueueLayeredMove(JumpMove);
 	OutputState.MovementEndState.NextModeName = FG::Modes::Air;
 
