@@ -24,7 +24,10 @@ public:
 	
 	//~ Begin UMoverComponent
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	UFUNCTION(BlueprintCallable)
 	virtual bool IsAirborne() const;
+	UFUNCTION(BlueprintCallable)
 	virtual bool IsOnGround() const;
 	//~ End UMoverComponent
 };

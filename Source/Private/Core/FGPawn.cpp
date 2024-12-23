@@ -73,11 +73,13 @@ void AFGPawn::Look(const FInputActionValue& Value)
 void AFGPawn::Jump()
 {
 	JumpButtonDown = true;
+	bIsJumpJustPressed = true;
 }
 
 void AFGPawn::JumpCompleted()
 {
 	JumpButtonDown = false;
+	bIsJumpJustPressed = false;
 }
 
 void AFGPawn::Crouch()
@@ -117,6 +119,11 @@ void AFGPawn::ProduceInput_Implementation(int32 SimTimeMs, FMoverInputCmdContext
 	CharacterInputs.bUsingMovementBase = false;
 	CharacterInputs.OrientationIntent = IntentRotation.Vector();
 	CharacterInputs.bIsJumpPressed = JumpButtonDown;
+	CharacterInputs.bIsJumpJustPressed = bIsJumpJustPressed;
 	CharacterInputs.bIsCrouchPressed = CrouchButtonDown;
 	CharacterInputs.SetMoveInput(EMoveInputType::DirectionalIntent, CachedMoveInputIntent);
+
+	{
+		bIsJumpJustPressed = false;
+	}
 }

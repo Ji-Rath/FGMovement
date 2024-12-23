@@ -70,4 +70,5 @@ private:
 	FRotator3d	CachedLookInput				= FRotator3d::ZeroRotator;
 	bool		JumpButtonDown				= false;
 	bool		CrouchButtonDown				= false;
+	bool bIsJumpJustPressed = false;
 };
